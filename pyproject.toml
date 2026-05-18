@@ -1,0 +1,15 @@
+[project]
+name = "self-evolving-agent"
+version = "0.1.0"
+description = "自我进化 Agent - 通过 LLM 驱动自我修改与能力扩展"
+requires-python = ">=3.12"
+dependencies = [
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.27.0",
+    "beautifulsoup4>=4.12.0",
+    "watchdog>=4.0.0",
+]
+
+[tool.uv]
+dev-dependencies = []
