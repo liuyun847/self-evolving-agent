@@ -217,7 +217,7 @@ class Agent:
         if tool_schemas:
             kwargs["tools"] = tool_schemas
 
-        response = self.llm_client._retry(
+        response = self.llm_client._retry_simple(
             lambda: self.llm_client._client.chat.completions.create(**kwargs)
         )
 

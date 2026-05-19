@@ -10,3 +10,11 @@ build/
 .Python
 eggs/
 *.egg
+
+*.log
+*.vdi
+*.iso
+
+*虚拟机配置*
+*虚拟机*
+vm_*

@@ -664,8 +664,12 @@ def test_agent() -> None:
     args = Agent._parse_tool_args(tc_bad)
     assert_equal(args, {}, "10.10 _parse_tool_args 异常 JSON 返回空字典")
 
-    # 10.11 Agent 常量正确
-    assert_equal(agent_mod._WORKSPACE, "/workspace", "10.11 _WORKSPACE = '/workspace'")
+    # 10.11 Agent 常量正确（路径动态计算，应包含项目目录名）
+    workspace_lower = agent_mod._WORKSPACE.lower()
+    assert_true(
+        "self-evolving-agent" in workspace_lower or workspace_lower.endswith("self-evolving-agent"),
+        f"10.11 _WORKSPACE 应指向项目目录: {agent_mod._WORKSPACE}",
+    )
     assert_in("memory/system.md", agent_mod._SYSTEM_PROMPT_PATH, "10.11 _SYSTEM_PROMPT_PATH")
     assert_in("inbox", agent_mod._INBOX_DIR, "10.11 _INBOX_DIR")
     assert_in("response.txt", agent_mod._INBOX_RESPONSE_PATH, "10.11 _INBOX_RESPONSE_PATH")

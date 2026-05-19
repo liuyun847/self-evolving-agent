@@ -11,12 +11,13 @@ import threading
 from collections.abc import Callable
 from pathlib import Path
 
-# 通过 importlib 导入 watchdog 包，避免项目根目录的 watchdog.py 命名冲突
-import importlib
-_watchdog_pkg = importlib.import_module("watchdog")
-FileCreatedEvent = _watchdog_pkg.events.FileCreatedEvent
-FileSystemEventHandler = _watchdog_pkg.events.FileSystemEventHandler
-Observer = _watchdog_pkg.observers.Observer
+# 通过临时移除项目根目录来导入 watchdog 库，避免与本地 watchdog.py 冲突
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_sys_path_backup = sys.path.copy()
+sys.path = [p for p in sys.path if os.path.abspath(p) != _project_root]
+from watchdog.events import FileCreatedEvent, FileSystemEventHandler
+from watchdog.observers import Observer
+sys.path = _sys_path_backup
 
 
 class _InboxHandler(FileSystemEventHandler):
