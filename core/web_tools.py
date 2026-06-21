@@ -55,10 +55,6 @@ def web_search(query: str, num_results: int = 5) -> str:
         link: str = url_el.get_text(strip=True) if url_el else "无链接"
         snippet: str = snippet_el.get_text(strip=True) if snippet_el else "无摘要"
 
-        # 清理 URL 前缀
-        if link and "//" in link:
-            link = link.strip()
-
         lines.append(f"{title}\n{link}\n{snippet}\n---")
 
     return "\n".join(lines) if lines else "未找到搜索结果"
@@ -107,8 +103,9 @@ def web_fetch(url: str, timeout: int = 30) -> str:
 
     max_chars: int = 10000
     if len(cleaned_text) > max_chars:
+        original_len = len(cleaned_text)
         cleaned_text = cleaned_text[:max_chars] + "\n\n[内容已截断，原文共 {} 字符]".format(
-            len(text)
+            original_len
         )
 
     return cleaned_text if cleaned_text else "未能提取到有效文本内容"

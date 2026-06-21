@@ -106,6 +106,37 @@ class LLMClient:
         else:
             return self._chat_sync(messages, tools, temperature, max_tokens)
 
+    def chat_completion(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+    ) -> Any:
+        """发送聊天请求并返回完整的 ChatCompletion 响应对象。
+
+        与 chat() 不同，此方法返回原始响应对象，可用于访问 tool_calls 等字段。
+
+        参数:
+            messages: 消息列表
+            tools: tools 定义列表，为 None 时不传 tools
+            temperature: 采样温度，默认 0.7
+            max_tokens: 最大输出 token 数，默认使用实例配置
+
+        返回:
+            OpenAI ChatCompletion 响应对象
+
+        异常:
+            openai 相关异常在重试耗尽后向上抛出
+        """
+        kwargs = self._build_kwargs(messages, tools, temperature, max_tokens)
+        return self._retry(lambda: self._client.chat.completions.create(**kwargs))
+
+    @property
+    def model(self) -> str:
+        """当前配置的模型名称"""
+        return self._model
+
     # ------------------------------------------------------------------
     # 内部方法
     # ------------------------------------------------------------------

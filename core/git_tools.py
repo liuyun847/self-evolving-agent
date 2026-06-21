@@ -5,6 +5,7 @@
 """
 
 import os
+import shlex
 import subprocess
 
 _PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -53,11 +54,12 @@ def git_add(paths: str = ".") -> str:
 
     Args:
         paths: 要添加的文件路径，空格分隔多个路径，默认为 "."
+               支持用引号包裹含空格的路径
 
     Returns:
         stdout 或 stderr
     """
-    return _run_git(["add", *paths.split()])
+    return _run_git(["add", *(shlex.split(paths) if paths else ["."])])
 
 
 def git_commit(message: str) -> str:

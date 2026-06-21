@@ -85,6 +85,7 @@ class InboxListener:
         """停止文件系统事件监听并等待线程结束"""
         if self._observer is not None:
             self._observer.stop()
+            self._observer.join()
             self._observer = None
         if self._thread is not None:
             self._thread.join()
