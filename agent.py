@@ -201,26 +201,19 @@ class Agent:
     def _call_llm(self) -> tuple[str, list[dict[str, Any]]]:
         """调用 LLM API，返回 (文本内容, tool_calls 列表)。
 
-        通过 LLMClient._retry() 执行调用，确保享受指数退避重试保护。
+        通过 LLMClient.chat_completion() 执行调用，确保享受指数退避重试保护。
+        不传 max_tokens 以使用 API 默认的输出上限（LLM_MAX_TOKENS 描述的是
+        上下文窗口大小，并非输出 token 上限，不应作为 max_tokens 传入）。
 
         Returns:
             (响应文本, tool_calls 字典列表)
         """
         tool_schemas: list[dict[str, Any]] = self.registry.get_tool_schemas()
-
-        kwargs: dict[str, Any] = {
-            "model": self.llm_client._model,
-            "messages": self.messages,
-            "temperature": 0.7,
-            "max_tokens": self.llm_client._max_tokens,
-        }
-        if tool_schemas:
-            kwargs["tools"] = tool_schemas
-
-        response = self.llm_client._retry(
-            lambda: self.llm_client._client.chat.completions.create(**kwargs)
+        response = self.llm_client.chat_completion(
+            messages=self.messages,
+            tools=tool_schemas if tool_schemas else None,
+            temperature=0.7,
         )
-
         return self._parse_response(response)
 
     # ------------------------------------------------------------------
@@ -292,7 +285,7 @@ class Agent:
         Returns:
             若触碰锚点则返回错误消息，否则返回 None
         """
-        if tool_name not in ("write_file", "delete_file"):
+        if tool_name not in ("write_file", "append_file", "delete_file"):
             return None
 
         target_path: str = args.get("path", "")

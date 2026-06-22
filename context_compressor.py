@@ -141,26 +141,55 @@ class ContextCompressor:
         else:
             rest = list(messages)
 
+        if not rest:
+            return list(messages)
+
         # 从后往前选取最近消息，直到接近阈值
         system_tokens = self._messages_tokens([system_msg]) if system_msg else 0
-        available = self.threshold - system_tokens - 200  # 预留 200 token 给摘要
+        # 确保 available 至少为 threshold 的 10%，避免 system 消息过大时为负
+        available = max(self.threshold // 10, self.threshold - system_tokens - 200)
 
-        kept: list[dict[str, Any]] = []
+        kept_indices: list[int] = []
         kept_tokens = 0
-        for msg in reversed(rest):
+        i = len(rest) - 1
+        while i >= 0:
+            msg = rest[i]
             msg_tokens = self.estimate_tokens(
                 msg.get("content", "") if isinstance(msg.get("content"), str) else ""
             ) + 4
-            if kept_tokens + msg_tokens > available:
+            if kept_indices and kept_tokens + msg_tokens > available:
                 break
-            kept.insert(0, msg)
+            kept_indices.insert(0, i)
             kept_tokens += msg_tokens
+            i -= 1
+
+        # 保护 tool_calls 配对：若 kept 第一条是 tool 结果，
+        # 向前扩展直到包含对应的 assistant tool_calls 消息
+        while kept_indices:
+            first_idx = kept_indices[0]
+            if rest[first_idx].get("role") != "tool":
+                break
+            if first_idx == 0:
+                break
+            prev_idx = first_idx - 1
+            prev_msg = rest[prev_idx]
+            if prev_msg.get("role") == "assistant" and prev_msg.get("tool_calls"):
+                kept_indices.insert(0, prev_idx)
+            elif prev_msg.get("role") == "tool":
+                kept_indices.insert(0, prev_idx)
+                continue
+            else:
+                break
+
+        kept = [rest[idx] for idx in kept_indices]
 
         # 确定需要摘要的旧消息范围
-        if not kept:
+        if not kept_indices:
             kept = [rest[-1]]
+            kept_start_idx = len(rest) - 1
+        else:
+            kept_start_idx = kept_indices[0]
 
-        kept_start_idx = len(rest) - len(kept)
         old_messages = rest[:kept_start_idx]
 
         if not old_messages:

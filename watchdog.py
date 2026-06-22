@@ -11,7 +11,6 @@ import signal
 import subprocess
 import sys
 import time
-from typing import NoReturn
 
 logger = logging.getLogger("watchdog")
 """看门狗日志记录器"""
@@ -84,20 +83,19 @@ def _start_agent() -> subprocess.Popen[bytes] | None:
         return None
 
 
-def _is_alive(pid: int) -> bool:
-    """通过 os.kill(pid, 0) 检测进程是否存活。
+def _is_alive(proc: subprocess.Popen[bytes]) -> bool:
+    """检测 agent 子进程是否存活。
+
+    使用 Popen.poll() 检测子进程状态，比 os.kill(pid, 0) 更准确，
+    不会因 PID 复用而误判。
 
     Args:
-        pid: 进程 ID
+        proc: agent 子进程的 Popen 对象
 
     Returns:
         进程存活返回 True，否则返回 False
     """
-    try:
-        os.kill(pid, 0)
-        return True
-    except OSError:
-        return False
+    return proc.poll() is None
 
 
 def _terminate_agent(proc: subprocess.Popen[bytes]) -> None:
@@ -163,7 +161,7 @@ def _git_reset_hard() -> bool:
         return False
 
 
-def main() -> NoReturn:
+def main() -> None:
     """看门狗主函数。
 
     启动 agent.py 子进程，每 _CHECK_INTERVAL 秒检测其存活状态。
@@ -191,25 +189,24 @@ def main() -> NoReturn:
             proc = _start_agent()
             continue
 
-        pid = proc.pid
-        if pid is None:
-            logger.warning("无法获取 agent PID，重新启动")
-            proc = _start_agent()
+        if _is_alive(proc):
+            logger.debug("agent (PID=%d) 存活", proc.pid)
             continue
 
-        if _is_alive(pid):
-            logger.debug("agent (PID=%d) 存活", pid)
-            continue
+        logger.warning("agent (PID=%d) 已死亡，执行恢复流程", proc.pid)
 
-        logger.warning("agent (PID=%d) 已死亡，执行恢复流程", pid)
-
-        # 收集子进程输出（非阻塞）
+        # 收集子进程输出（进程已终止，communicate 会立即返回）
         try:
-            stdout, stderr = proc.communicate(timeout=0)
+            stdout, stderr = proc.communicate(timeout=5.0)
         except subprocess.TimeoutExpired:
-            stdout, stderr = proc.communicate(timeout=1)
-        except OSError:
-            stdout, stderr = proc.communicate()
+            logger.warning("收集 agent 输出超时，强制终止")
+            try:
+                proc.kill()
+                stdout, stderr = proc.communicate(timeout=2.0)
+            except Exception:
+                stdout, stderr = b"", b""
+        except Exception:
+            stdout, stderr = b"", b""
 
         if stdout:
             logger.info("agent 最后输出 (stdout):\n%s", stdout.decode(errors="replace").strip())
